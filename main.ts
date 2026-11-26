@@ -13,11 +13,24 @@
 // Run it outside the grader's container with:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoDir = dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 mkdirSync(outDir, { recursive: true });
-copyFileSync(join(repoDir, 'entry.png'), join(outDir, 'entry.png'));
+const src = join(repoDir, 'entry.png');
+const dst = join(outDir, 'entry.png');
+copyFileSync(src, dst);
+
+// Guard against a truncated or corrupted copy: the graded output must be
+// exactly the entry image, 317,045 bytes, sha256
+// e636a5674f3aa71817e0bfcb4c755496f95a11b2a2a17544f1a8f0caa68d0c06.
+const bytes = readFileSync(dst);
+const sha256 = createHash('sha256').update(bytes).digest('hex');
+if (bytes.length !== 317045 || sha256 !== 'e636a5674f3aa71817e0bfcb4c755496f95a11b2a2a17544f1a8f0caa68d0c06') {
+  throw new Error(`entry.png verification failed: ${bytes.length} bytes, sha256 ${sha256}`);
+}
+console.log(`wrote ${dst} (${bytes.length} bytes, sha256 ${sha256})`);
